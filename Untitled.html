@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Schedule to iCalendar/Google Calendar Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #fff;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f0f0f0;
+            margin-bottom: 20px;
+        }
+        .footer {
+            font-size: 12px;
+            text-align: right;
+            color: #666;
+        }
+        label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+        .custom-input {
+            display: none;
+            margin-left: 10px;
+            padding: 5px;
+            border: 1px solid #ccc;
+        }
+        select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+        select:hover {
+            background-color: #f0f0f0;
+        }
+        .section {
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        function parseSchedule(scheduleText) {
+            const validLines = [];
+            const invalidLines = [];
+
+            const lines = scheduleText.split("\n");
+            const pattern = /^[MTWFS]\s*\d{2}\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}/;
+
+            lines.forEach((line) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine && pattern.test(trimmedLine)) {
+                    validLines.push(trimmedLine);
+                } else if (trimmedLine) {
+                    invalidLines.push(trimmedLine);
+                }
+            });
+
+            return {
+                validLines,
+                invalidLines,
+            };
+        }
+
+        function previewSchedule() {
+            const scheduleText = document.getElementById("scheduleInput").value;
+            const { validLines, invalidLines } = parseSchedule(scheduleText);
+
+            let output = "<b>Valid Schedule Lines:</b><br>";
+            output += validLines.length > 0 ? validLines.join("<br>") : "No valid schedule lines found.";
+
+            if (invalidLines.length > 0) {
+                output += "<br><b>Invalid Schedule Lines:</b><br>";
+                output += invalidLines.join("<br>");
+            }
+
+            document.getElementById("previewOutput").innerHTML = output;
+        }
+
+        function convertToICalendar() {
+            const scheduleText = document.getElementById("scheduleInput").value;
+            let eventName = document.getElementById("eventName").value;
+            if (eventName === "Custom") {
+                eventName = document.getElementById("customEventName").value || "Custom";
+            }
+            const eventYear = document.getElementById("eventYear").value;
+            const eventMonth = document.getElementById("eventMonth").value;
+
+            const { validLines } = parseSchedule(scheduleText);
+
+            if (validLines.length === 0) {
+                alert("No valid schedule lines to convert.");
+                return;
+            }
+
+            let icalendar = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Example Corp//EN\n";
+
+            validLines.forEach((line) => {
+                const parts = line.split(" ");
+                const day = parts[0].trim();
+                const times = parts.slice(1).join(" ").trim();
+                const [start, end] = times.split("-").map((t) => t.trim());
+
+                const dayOfMonth = start.split(" ")[0];
+                const startTime = start.split(" ")[1].replace(":", "");
+                const endTime = "235959"; // Ends by midnight of the same day
+
+                const startDate = `${eventYear}${eventMonth}${dayOfMonth}`;
+                const endDate = `${eventYear}${eventMonth}${dayOfMonth}`;
+
+                icalendar += "BEGIN:VEVENT\n";
+                icalendar += `SUMMARY:${eventName}\n`;
+                icalendar += `DTSTART:${startDate}T${startTime}00\n`;
+                icalendar += `DTEND:${endDate}T${endTime}\n`;
+                icalendar += "END:VEVENT\n";
+            });
+
+            icalendar += "END:VCALENDAR\n";
+
+            const blob = new Blob([icalendar], { type: "text/calendar" });
+            const url = URL.createObjectURL(blob);
+
+            const downloadLink = document.createElement("a");
+            downloadLink.href = url;
+            downloadLink.download = "multi-event-schedule.ics";
+            downloadLink.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById("eventName").addEventListener("change", function() {
+            const customInput = document.getElementById("customEventName");
+            customInput.style.display = this.value === "Custom" ? "block" : "none";
+        });
+    </script>
+</head>
+<body>
+    <h1>Schedule to iCalendar/Google Calendar Converter</h1>
+    <p>Enter your schedule below, choose an event name, year, and month. Click "Preview" to view valid schedule lines, and "Generate iCalendar File" to create the .ics file.</p>
+    <textarea id="scheduleInput" placeholder="Enter schedule text here..."></textarea>
+    <br>
+    <div class="section">
+        <label for="eventName">Event Name:</label>
+        <select id="eventName">
+            <option value="Work">Work</option>
+            <option value="Gym">Gym</option>
+            <option value="Custom">Custom</option>
+        </select>
+        <input type="text" id="customEventName" class="custom-input" placeholder="Enter event name" />
+    </div>
+    <div class="section">
+        <label for="eventYear">Year:</label>
+        <select id="eventYear">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+            <option value="2031">2031</option>
+            <option value="2032">2032</option>
+            <option value="2033">2033</option>
+            option value="2034">2034</option>
+            <option value="2035">2035</option>
+            <option value="2036">2036</option>
+            <option value="2037">2037</option>
+            <option value="2038">2038</option>
+            <option value="2039">2039</option>
+            <option value="2040">2040</option>
+        </select>
+    </div>
+    <div class="section">
+        <label for="eventMonth">Month:</label>
+        <select id="eventMonth">
+            <option value="01">January</option>
+            <option value="02">February</option>
+            <option value="03">March</option>
+            <option value="04">April</option>
+            <option value="05">May</option>
+            <option value="06">June</option>
+            <option value="07">July</option>
+            <option value="08">August</option>
+            <option value="09">September</option>
+            <option value="10">October</option>
+            option value="11">November</option>
+            <option value="12">December</option>
+        </select>
+    </div>
+    <br><br>
+    <button onclick="previewSchedule()">Preview</button>
+    <button onclick="convertToICalendar()">Generate iCalendar File</button>
+    <br>
+    <div class="output" id="previewOutput"></div>
+    <div class="footer">IzzyLazewnik</div>
+</body>
+</html>
